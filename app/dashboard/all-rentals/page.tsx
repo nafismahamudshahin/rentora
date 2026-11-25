@@ -69,6 +69,7 @@ const columns: Column<Rental>[] = [
     className: "font-bold",
   },
   { header: "Rental Duration", value: (r) => r.duration },
+  { header: "Quantity", value: (r) => r.quantity },
   {
     header: "Booking Amount",
     value: (r) => r.amount,
@@ -108,6 +109,7 @@ export default function AllRentalsPage() {
           owner: { name: r.ownerName, email: r.ownerEmail },
           equipment: r.equipment,
           duration: formatDateRange(r.startDate, r.endDate),
+          quantity: r.quantity ?? 1,
           amount: r.amount,
           payment: r.paymentStatus,
           status: r.bookingStatus,
@@ -119,7 +121,7 @@ export default function AllRentalsPage() {
 
   async function update(
     id: string,
-    status: "Active" | "Cancelled",
+    status: "Active" | "Completed" | "Cancelled",
     message: string
   ) {
     setPendingId(id)
@@ -163,15 +165,31 @@ export default function AllRentalsPage() {
         actions={(r) => {
           if (r.status === "Pending") {
             return (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => update(r.id, "Cancelled", "Hold cancelled")}
+                disabled={pendingId !== null}
+                className={btnDanger}
+              >
+                Cancel hold
+              </Button>
+            )
+          }
+          if (r.status === "Active") {
+            return (
               <>
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => update(r.id, "Active", "Rental approved")}
+                  onClick={() =>
+                    update(r.id, "Completed", "Rental marked completed")
+                  }
                   disabled={pendingId !== null}
                   className={btnPrimary}
                 >
-                  Approve
+                  Complete
                 </Button>
                 <Button
                   type="button"
@@ -184,20 +202,6 @@ export default function AllRentalsPage() {
                   Cancel
                 </Button>
               </>
-            )
-          }
-          if (r.status === "Active") {
-            return (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => update(r.id, "Cancelled", "Rental cancelled")}
-                disabled={pendingId !== null}
-                className={btnDanger}
-              >
-                Cancel
-              </Button>
             )
           }
           return <span className="text-xs text-stone-500">—</span>
