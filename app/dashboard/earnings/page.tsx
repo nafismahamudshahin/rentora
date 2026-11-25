@@ -18,15 +18,23 @@ import { useAsync } from "@/hooks/use-async"
 type Payout = {
   id: string
   reference: string
+  equipment: string
   date: string
+  commission: number
   amount: number
   status: "Paid" | "Pending"
 }
 
 const columns: Column<Payout>[] = [
   { header: "Reference", value: (r) => r.reference, className: "font-bold" },
+  { header: "Equipment", value: (r) => r.equipment },
   { header: "Date", value: (r) => r.date },
-  { header: "Amount", value: (r) => r.amount, cell: (r) => bdt(r.amount) },
+  {
+    header: "Rentora fee",
+    value: (r) => r.commission,
+    cell: (r) => bdt(r.commission),
+  },
+  { header: "Net amount", value: (r) => r.amount, cell: (r) => bdt(r.amount) },
   {
     header: "Status",
     value: (r) => r.status,
@@ -50,24 +58,68 @@ export default function EarningsPage() {
             months: earnings.monthly,
             payouts: earnings.payouts.map((p) => ({
               ...p,
+              equipment: p.equipment || "—",
+              commission: p.commission ?? 0,
               date: formatDateShort(p.date),
             })),
+            total: earnings.total,
+            commission: earnings.commission,
+            thisMonth: earnings.thisMonth,
           }))
-        : Promise.resolve({ months: [], payouts: [] }),
+        : Promise.resolve({
+            months: [],
+            payouts: [],
+            total: 0,
+            commission: 0,
+            thisMonth: 0,
+          }),
     [ownerId]
   )
 
   const months = data?.months ?? []
   const payouts = data?.payouts ?? []
   const max = Math.max(1, ...months.map((m) => m.amount))
-  const thisMonth = months[months.length - 1]?.amount ?? 0
+  const thisMonth = data?.thisMonth ?? 0
+  const total = data?.total ?? 0
+  const commission = data?.commission ?? 0
 
   return (
     <>
       <PageHeader
         title="Earnings"
-        description="What your equipment has earned."
+        description="What your equipment has earned from successful payments."
       />
+
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={`${card} p-5`}>
+          <p className="text-sm font-medium text-stone-600">Net earnings</p>
+          <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold tracking-tight">
+            {bdt(total)}
+          </p>
+          <p className="mt-1 text-xs text-stone-500">All-time net, after the 2% fee</p>
+        </div>
+        <div className={`${card} p-5`}>
+          <p className="text-sm font-medium text-stone-600">This month</p>
+          <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold tracking-tight">
+            {bdt(thisMonth)}
+          </p>
+          <p className="mt-1 text-xs text-stone-500">Net payouts this month</p>
+        </div>
+        <div className={`${card} p-5`}>
+          <p className="text-sm font-medium text-stone-600">Rentora fee</p>
+          <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold tracking-tight">
+            {bdt(commission)}
+          </p>
+          <p className="mt-1 text-xs text-stone-500">Platform commission</p>
+        </div>
+        <div className={`${card} p-5`}>
+          <p className="text-sm font-medium text-stone-600">Payouts</p>
+          <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold tracking-tight">
+            {payouts.length}
+          </p>
+          <p className="mt-1 text-xs text-stone-500">Successful payments</p>
+        </div>
+      </div>
 
       <motion.section
         initial={reduce ? false : { opacity: 0, y: 18 }}
@@ -77,7 +129,7 @@ export default function EarningsPage() {
       >
         <div className="mb-5 flex items-end justify-between">
           <div>
-            <p className="text-sm font-medium text-stone-600">This month</p>
+            <p className="text-sm font-medium text-stone-600">Monthly net earnings</p>
             <p className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold tracking-tight">
               {bdt(thisMonth)}
             </p>
