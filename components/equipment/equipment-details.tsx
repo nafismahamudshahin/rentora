@@ -10,10 +10,10 @@ import { useState } from "react"
 import {
   AlertCircle,
   ArrowLeft,
+  Boxes,
   CalendarDays,
   Check,
   ChevronRight,
-  Clock3,
   Heart,
   MapPin,
   Share2,
@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner"
 
 import {
+  getAvailability,
   getEquipment,
   getEquipmentById,
   getUnavailableDates,
@@ -41,7 +42,13 @@ import { useAsync } from "@/hooks/use-async"
 import { useFavorites } from "@/hooks/use-favorites"
 import { authClient } from "@/lib/auth-client"
 import { bdt, formatDateShort } from "@/lib/format"
-import { bookingDays, todayIso, validateBookingRange } from "@/lib/booking"
+import {
+  bookingDays,
+  todayIso,
+  unitsOf,
+  validateBookingQuantity,
+  validateBookingRange,
+} from "@/lib/booking"
 import { cn } from "@/lib/utils"
 
 type EquipmentDetailsProps = {
@@ -120,6 +127,7 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
   const router = useRouter()
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [quantity, setQuantity] = useState(1)
   const { data: session, isPending: sessionPending } = authClient.useSession()
   const favorites = useFavorites()
   const {
@@ -129,6 +137,13 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
     reload,
   } = useAsync(() => getEquipmentById(id), [id])
   const { data: blocked = [] } = useAsync(() => getUnavailableDates(id), [id])
+  const { data: availability } = useAsync(
+    () =>
+      startDate && endDate
+        ? getAvailability(id, startDate, endDate)
+        : Promise.resolve(undefined),
+    [id, startDate, endDate]
+  )
   const { data: related = [] } = useAsync(
     () => (item ? getEquipment({ category: item.category }) : Promise.resolve([])),
     [item?.category]
@@ -159,7 +174,6 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
 
   if (!item) return <NotFound />
 
-  const isAvailable = item.status === "Available"
   const isFavorite = favorites.favoriteIds.has(item.id)
   const relatedItems = related
     .filter((candidate) => candidate.id !== item.id)
@@ -177,7 +191,22 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
   const minDate = todayIso()
   const days = startDate && endDate ? bookingDays(startDate, endDate) : 0
   const rangeError = validateBookingRange(startDate, endDate, blocked, minDate)
-  const canBook = isAvailable && days > 0 && !rangeError
+  const stock = unitsOf(item.availableQuantity)
+  const available = Math.min(stock, availability?.available ?? stock)
+  const selectedQuantity = Math.min(quantity, Math.max(1, available))
+  const quantityError = validateBookingQuantity(quantity, available)
+  // Bookings are customer-only. Owners and admins manage listings instead.
+  const signedIn = Boolean(session?.user)
+  const customerOnly =
+    !sessionPending && signedIn && session?.user.role !== "customer"
+  // A previous rental does not lock the whole listing — only the dates it
+  // actually occupies. Hidden listings stay closed.
+  const canBook =
+    !customerOnly &&
+    item.status !== "Hidden" &&
+    days > 0 &&
+    !rangeError &&
+    !quantityError
 
   // Send the chosen dates to the payment page. Guests go through login first.
   const book = () => {
@@ -187,6 +216,7 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
       equipmentId: item.id,
       startDate,
       endDate,
+      quantity: String(selectedQuantity),
     })
     const paymentPath = `/payment?${search.toString()}`
 
@@ -240,17 +270,6 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                 <div className="absolute top-4 left-4 flex flex-wrap gap-2">
                   <Badge className="rounded-full border-0 bg-white/95 text-[#111827] shadow-sm">
                     {item.category}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "rounded-full border-white/70 shadow-sm",
-                      isAvailable
-                        ? "bg-[#ECFDF3] text-[#166534]"
-                        : "bg-white/90 text-stone-600"
-                    )}
-                  >
-                    {item.status}
                   </Badge>
                 </div>
 
@@ -324,7 +343,11 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
               </h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <Fact icon={CalendarDays} label="Rental type" value={item.rentalType || "Daily"} />
-                <Fact icon={Clock3} label="Availability" value={item.status} />
+                <Fact
+                  icon={Boxes}
+                  label="Available quantity"
+                  value={`${stock} unit${stock === 1 ? "" : "s"}`}
+                />
                 <Fact icon={ShieldCheck} label="Listing review" value={item.reviewStatus} />
                 <Fact icon={MapPin} label="Pickup area" value={item.location} />
               </div>
@@ -343,24 +366,19 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                   <span className="pb-1 text-sm font-medium text-stone-500">/ day</span>
                 </div>
 
-                <div className="mt-5 flex items-center gap-2 rounded-2xl bg-[#FAF7F2] p-4">
-                  <span
-                    className={cn(
-                      "size-2.5 rounded-full",
-                      isAvailable ? "bg-emerald-500" : "bg-stone-400"
-                    )}
-                    aria-hidden
-                  />
-                  <p className="text-sm font-semibold text-[#111827]">
-                    {isAvailable ? "Available now" : `Currently ${item.status.toLowerCase()}`}
-                  </p>
-                </div>
-
                 <Separator className="my-6 bg-[#EDE6D8]" />
 
                 <p className="text-sm font-semibold text-[#111827]">
                   Choose rental dates
                 </p>
+                <p className="mt-1 text-xs text-stone-500">
+                  Pick any free dates — past bookings only use the units they booked.
+                </p>
+                {customerOnly ? (
+                  <p className="mt-2 text-xs font-semibold text-[#9A3412]">
+                    Only customer accounts can book. Owners and admins manage listings.
+                  </p>
+                ) : null}
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="start-date">Start date</Label>
@@ -390,9 +408,30 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                   </div>
                 </div>
 
+                <div className="mt-3 max-w-[11rem] space-y-1.5">
+                  <Label htmlFor="booking-quantity">Quantity</Label>
+                  <Input
+                    id="booking-quantity"
+                    type="number"
+                    min="1"
+                    max={Math.max(1, available)}
+                    step="1"
+                    inputMode="numeric"
+                    value={selectedQuantity}
+                    onChange={(event) => setQuantity(Number(event.target.value))}
+                    disabled={available < 1}
+                    className="h-11 rounded-xl border-[#EDE6D8]"
+                  />
+                  <p className="text-xs text-stone-500">
+                    {startDate && endDate
+                      ? `${available} unit${available === 1 ? "" : "s"} free for these dates`
+                      : `${stock} unit${stock === 1 ? "" : "s"} in stock`}
+                  </p>
+                </div>
+
                 {blocked.length > 0 ? (
                   <div className="mt-3 rounded-2xl bg-[#FFF7ED] p-3 text-xs text-[#9A3412]">
-                    <p className="font-bold">Already booked — pick other dates</p>
+                    <p className="font-bold">Fully booked — pick other dates</p>
                     <ul className="mt-1 space-y-0.5">
                       {blocked.slice(0, 4).map((range) => (
                         <li key={`${range.startDate}-${range.endDate}`}>
@@ -414,15 +453,23 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                   </p>
                 ) : null}
 
+                {quantityError ? (
+                  <p className="mt-3 flex items-start gap-1.5 text-xs font-semibold text-red-600">
+                    <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden />
+                    {quantityError}
+                  </p>
+                ) : null}
+
                 <div className="mt-5 rounded-2xl border border-[#EDE6D8] bg-[#FAF7F2] p-4">
                   {days > 0 ? (
                     <div className="flex items-center justify-between text-sm text-stone-600">
                       <span>
                         {bdt(item.pricePerDay)} × {days}{" "}
-                        {days === 1 ? "day" : "days"}
+                        {days === 1 ? "day" : "days"} × {selectedQuantity}{" "}
+                        {selectedQuantity === 1 ? "unit" : "units"}
                       </span>
                       <span className="font-semibold text-[#111827]">
-                        {bdt(item.pricePerDay * days)}
+                        {bdt(item.pricePerDay * days * selectedQuantity)}
                       </span>
                     </div>
                   ) : (
@@ -434,7 +481,9 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]">Total</span>
                     <span className="font-[family-name:var(--font-space-grotesk)] text-xl font-bold text-[#111827]">
-                      {days > 0 ? bdt(item.pricePerDay * days) : "—"}
+                      {days > 0
+                        ? bdt(item.pricePerDay * days * selectedQuantity)
+                        : "—"}
                     </span>
                   </div>
                 </div>
@@ -446,13 +495,15 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                   className="mt-5 h-12 w-full rounded-full bg-[#FF6B2C] font-bold text-[#111827] hover:bg-[#FF6B2C]/90 disabled:opacity-60"
                 >
                   <CalendarDays className="size-4" aria-hidden />
-                  {!isAvailable
+                  {item.status === "Hidden"
                     ? "Not available right now"
-                    : sessionPending
-                      ? "Checking session..."
-                      : session?.user
-                        ? "Book now"
-                        : "Sign in to book"}
+                    : customerOnly
+                      ? "Customers only"
+                      : sessionPending
+                        ? "Checking session..."
+                        : session?.user
+                          ? "Book now"
+                          : "Sign in to book"}
                 </Button>
                 <p className="mt-2 text-center text-xs text-stone-500">
                   Next: delivery details and secure Stripe checkout
