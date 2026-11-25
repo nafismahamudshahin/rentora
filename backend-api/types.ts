@@ -6,7 +6,7 @@
 export type BookingStatus = "Pending" | "Active" | "Completed" | "Cancelled"
 export type PaymentStatus = "Paid" | "Pending" | "Refunded" | "Failed"
 export type ListingStatus = "Available" | "Rented" | "Hidden"
-export type ReviewStatus = "Approved" | "Pending review"
+export type ReviewStatus = "Approved" | "Pending review" | "Rejected"
 export type RequestStatus = "Pending" | "Accepted" | "Declined"
 export type PayoutStatus = "Paid" | "Pending"
 export type TransactionStatus = "Succeeded" | "Pending" | "Refunded" | "Failed"
@@ -147,7 +147,23 @@ export type Payment = {
 }
 
 export type Review = {
+  id?: string
   name: string
+  rating: number
+  text: string
+}
+
+/** A customer's own review, linked to the rental that earned it. */
+export type CustomerReview = Review & {
+  id: string
+  rentalId: string
+  equipmentId: string
+  customerId: string
+  createdAt: string
+}
+
+export type NewReview = {
+  rentalId: string
   rating: number
   text: string
 }
