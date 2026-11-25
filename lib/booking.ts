@@ -23,6 +23,28 @@ export function bookingDays(start: string, end: string): number {
   return Math.round((to - from) / 86400000) + 1
 }
 
+/** Older listings/rentals did not store quantity; they use one unit. */
+export function unitsOf(value?: number): number {
+  const quantity = Math.floor(Number(value))
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+}
+
+/** Empty string means the requested quantity fits; otherwise a user message. */
+export function validateBookingQuantity(
+  quantity: number,
+  available: number
+): string {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return "Choose at least one unit"
+  }
+  if (quantity > available) {
+    return available < 1
+      ? "Every unit is booked for these dates"
+      : `Only ${available} unit${available === 1 ? " is" : "s are"} available for these dates`
+  }
+  return ""
+}
+
 export function rangesOverlap(
   aStart: string,
   aEnd: string,
