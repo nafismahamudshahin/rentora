@@ -78,6 +78,8 @@ export type Rental = {
   ownerEmail: string
   equipmentId: string
   equipment: string
+  /** Units reserved by this booking. Older rows behave as one unit. */
+  quantity: number
   startDate: string // ISO date, e.g. "2026-11-25"
   endDate: string
   bookingDate: string
@@ -201,10 +203,16 @@ export type AdminUser = {
   createdAt: string | null
 }
 
-/** A date range already taken by another customer. */
+/** A date range where every unit is already taken. */
 export type UnavailableRange = {
   startDate: string
   endDate: string
+}
+
+/** Remaining units for a chosen date range. */
+export type Availability = {
+  total: number
+  available: number
 }
 
 /** Stripe Checkout session created by the server for a booking. */
@@ -218,6 +226,7 @@ export type BookingCheckoutInput = {
   equipmentId: string
   startDate: string
   endDate: string
+  quantity: number
   phone: string
   address: string
 }
@@ -226,11 +235,17 @@ export type BookingCheckoutInput = {
 export type PaymentVerification = {
   paid: boolean
   equipmentId?: string
+  equipmentName?: string
+  customerName?: string
+  customerEmail?: string
   amount?: number
+  quantity?: number
   commission?: number
   ownerAmount?: number
   reference?: string
   bookingCode?: string
+  paidAt?: string
+  method?: string
   startDate?: string
   endDate?: string
 }

@@ -15,6 +15,7 @@ export default async function CheckoutPage({
     equipmentId?: string
     startDate?: string
     endDate?: string
+    quantity?: string
     payment?: string
     holdId?: string
   }>
@@ -36,6 +37,7 @@ export default async function CheckoutPage({
           equipmentId={params.equipmentId || ""}
           startDate={params.startDate || ""}
           endDate={params.endDate || ""}
+          quantity={Number(params.quantity) || 1}
           cancelled={params.payment === "cancelled"}
           holdId={params.holdId || ""}
         />

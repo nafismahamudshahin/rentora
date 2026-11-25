@@ -20,7 +20,11 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { getEquipmentById, getUnavailableDates } from "@/backend-api/api/equipment"
+import {
+  getAvailability,
+  getEquipmentById,
+  getUnavailableDates,
+} from "@/backend-api/api/equipment"
 import { cancelHold, createCheckout } from "@/backend-api/action/payments"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -31,13 +35,20 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
 import { authClient } from "@/lib/auth-client"
 import { bdt, formatDateRange } from "@/lib/format"
-import { bookingDays, todayIso, validateBookingRange } from "@/lib/booking"
+import {
+  bookingDays,
+  todayIso,
+  unitsOf,
+  validateBookingQuantity,
+  validateBookingRange,
+} from "@/lib/booking"
 import { cn } from "@/lib/utils"
 
 type PaymentPageProps = {
   equipmentId: string
   startDate: string
   endDate: string
+  quantity: number
   cancelled: boolean
   holdId: string
 }
@@ -46,6 +57,7 @@ export function PaymentPage({
   equipmentId,
   startDate,
   endDate,
+  quantity,
   cancelled,
   holdId,
 }: PaymentPageProps) {
@@ -69,6 +81,13 @@ export function PaymentPage({
   const { data: blocked = [] } = useAsync(
     () => (equipmentId ? getUnavailableDates(equipmentId) : Promise.resolve([])),
     [equipmentId]
+  )
+  const { data: availability } = useAsync(
+    () =>
+      equipmentId && startDate && endDate
+        ? getAvailability(equipmentId, startDate, endDate)
+        : Promise.resolve(undefined),
+    [equipmentId, startDate, endDate]
   )
 
   // When Stripe is cancelled, release the dates we held at checkout.
@@ -119,6 +138,7 @@ export function PaymentPage({
         equipmentId: item.id,
         startDate,
         endDate,
+        quantity: selectedQuantity,
         phone: phone.trim(),
         address: address.trim(),
       })
@@ -233,6 +253,10 @@ export function PaymentPage({
                 {item.rating > 0 ? `${item.rating.toFixed(1)} rating` : "New listing"}
               </span>
               <span>Listed by {item.ownerName || "a Rentora owner"}</span>
+              <span className="flex items-center gap-1.5">
+                <Boxes className="size-4 text-[#FF6B2C]" aria-hidden />
+                {stock} available
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -344,6 +368,12 @@ export function PaymentPage({
                 </dd>
               </div>
               <div className="flex items-center justify-between">
+                <dt className="text-stone-500">Quantity</dt>
+                <dd className="font-semibold text-[#111827]">
+                  {selectedQuantity} {selectedQuantity === 1 ? "unit" : "units"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
                 <dt className="text-stone-500">Price per day</dt>
                 <dd className="font-semibold text-[#111827]">
                   {bdt(item.pricePerDay)}
@@ -356,7 +386,8 @@ export function PaymentPage({
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between text-stone-600">
                 <span>
-                  {bdt(item.pricePerDay)} × {days} {days === 1 ? "day" : "days"}
+                  {bdt(item.pricePerDay)} × {days} {days === 1 ? "day" : "days"} ×{" "}
+                  {selectedQuantity} {selectedQuantity === 1 ? "unit" : "units"}
                 </span>
                 <span>{bdt(total)}</span>
               </div>

@@ -1,7 +1,12 @@
 // backend-api/api/equipment.ts
 // Read: public catalog and single-item lookup.
 import { ApiError, apiFetch, query, segment } from "../client"
-import type { Equipment, EquipmentQuery, UnavailableRange } from "../types"
+import type {
+  Availability,
+  Equipment,
+  EquipmentQuery,
+  UnavailableRange,
+} from "../types"
 
 /** First six listings for the home page. */
 export async function getHomeEquipment(): Promise<Equipment[]> {
@@ -15,7 +20,23 @@ export async function getEquipment(
   return apiFetch<Equipment[]>(`/equipment${query(params)}`)
 }
 
-/** Date ranges already booked for one item. */
+/** Admin-only: every listing, including pending and rejected ones. */
+export async function getAdminEquipment(): Promise<Equipment[]> {
+  return apiFetch<Equipment[]>("/admin/equipment")
+}
+
+/** Units still free for one item over a chosen date range. */
+export async function getAvailability(
+  id: string,
+  startDate: string,
+  endDate: string
+): Promise<Availability> {
+  return apiFetch<Availability>(
+    `/equipment/${segment(id)}/availability${query({ startDate, endDate })}`
+  )
+}
+
+/** Date ranges where every unit is already booked. */
 export async function getUnavailableDates(
   id: string
 ): Promise<UnavailableRange[]> {
