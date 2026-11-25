@@ -61,7 +61,8 @@ show the message inline.
 | `getHomeEquipment()`               | `api/equipment` | `GET /equipment/home`        | public; first 6 listings       |
 | `getEquipment(params?)`            | `api/equipment` | `GET /equipment?filters`     | public; every field filterable |
 | `getEquipmentById(id)`             | `api/equipment` | `GET /equipment/:id`         | public; 404 → `undefined`      |
-| `getUnavailableDates(id)`          | `api/equipment` | `GET /equipment/:id/unavailable-dates` | public; booked ranges |
+| `getAvailability(id, start, end)`  | `api/equipment` | `GET /equipment/:id/availability` | public; free units for a range |
+| `getUnavailableDates(id)`          | `api/equipment` | `GET /equipment/:id/unavailable-dates` | public; fully booked ranges |
 | `getListings(ownerId)`             | `api/listings`  | `GET /listings?ownerId=`     | owner, or admin override       |
 | `getRentals()`                     | `api/rentals`   | `GET /rentals`               | role-scoped (admin sees all)   |
 | `getRentalsByCustomer(customerId)` | `api/rentals`   | `GET /rentals?customerId=`   | admin filter                   |
@@ -82,8 +83,8 @@ show the message inline.
 | `setListingHidden(id, hidden)`   | `action/listings`  | `PATCH /equipment/:id/visibility` | owner hides/shows           |
 | `removeEquipment(id)`            | `action/equipment` | `DELETE /equipment/:id`           | admin removes               |
 | `deleteListing(id)`              | `action/listings`  | `DELETE /equipment/:id`           | owner deletes               |
-| `cancelRental(id)`               | `action/rentals`   | `PATCH /rentals/:id/cancel`       | customer cancels            |
-| `updateRentalStatus(id, status)` | `action/rentals`   | `PATCH /rentals/:id/status`       | admin sets Active/Cancelled |
+| `cancelRental(id)`               | `action/rentals`   | `PATCH /rentals/:id/cancel`       | customer cancels unpaid hold |
+| `updateRentalStatus(id, status)` | `action/rentals`   | `PATCH /rentals/:id/status`       | admin sets Active/Completed/Cancelled |
 | `respondToRequest(id, status)`   | `action/requests`  | `PATCH /requests/:id`             | owner accepts/declines      |
 | `addFavorite(equipmentId)`       | `action/favorites` | `POST /favorites`                 | saves; returns favorite row |
 | `removeFavorite(id)`             | `action/favorites` | `DELETE /favorites/:id`           | customer removes            |
@@ -103,8 +104,29 @@ show the message inline.
   `updateUser` goes through the same `/api/auth/*` proxy. There is no upload
   endpoint — the page stores an http(s) URL or a local file read as a data URL;
   `image: null` clears it.
+- `createEquipment()` sends `availableQuantity` with the listing. `Rental` rows
+  also carry `quantity`; checkout price is `pricePerDay × days × quantity`.
+  `getAvailability()` is the source of truth for how many units a customer may
+  choose for a date range; `getUnavailableDates()` only reports fully booked
+  dates. Legacy rows without either field are treated as one unit.
+- `verifyPayment()` returns the receipt fields (`equipmentName`, `customerName`,
+  `customerEmail`, `paidAt`, `method`) alongside the booking code and payment
+  reference. The success page and customer rentals use `lib/receipt.ts` to save
+  them as a PDF; no receipt is stored on the server.
+- Booking status is normalized by the API: a successful payment is `Active`,
+  expired unpaid holds are `Cancelled`, and finished rentals become `Completed`.
+  The dashboard tables share labels from `components/dashboard/booking-status.ts`.
 - `getEquipment(params?)` accepts `EquipmentQuery` and sends it as query params.
-  The API filters/sorts on the server; see `../../rentora node server/README.md`
-  for the full parameter list.
+  Public reads only return approved, non-hidden listings.
+  `getAdminEquipment()` is the admin-only version that includes pending and
+  rejected listings for the review page. The API filters/sorts on the server;
+  see `../../rentora node server/README.md` for the full parameter list.
 - `addFavorite()` returns the saved row; pass its `id` to `removeFavorite()`.
+- `getEarnings(ownerId)` returns a six-month chart, one payout per successful
+  payment, and net totals after Rentora's 2% fee. Non-admins can only read their
+  own ownerId.
+- `getMyReviews()` lists the signed-in customer's reviews; `createReview()`
+  posts `{ rentalId, rating, text }` for one paid rental (one review per rental).
 - The API also has `POST /api/rentals`; no frontend wrapper exists for it yet.
+  Booking is customer-only: owners and admins get 403 from both this route and
+  `POST /payments/checkout`.

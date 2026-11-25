@@ -5,8 +5,17 @@
 // the session before we display "paid", so the browser cannot fake a result.
 
 import Link from "next/link"
+import { useState } from "react"
 import type { ReactNode } from "react"
-import { ArrowLeft, CheckCircle2, CreditCard, Loader2, XCircle } from "lucide-react"
+import { toast } from "sonner"
+import {
+  ArrowLeft,
+  CheckCircle2,
+  CreditCard,
+  Download,
+  Loader2,
+  XCircle,
+} from "lucide-react"
 
 import { verifyPayment } from "@/backend-api/action/payments"
 import { normalizeRole } from "@/components/dashboard/nav-config"
@@ -15,6 +24,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useAsync } from "@/hooks/use-async"
 import { authClient } from "@/lib/auth-client"
 import { bdt, formatDateRange } from "@/lib/format"
+import { downloadReceipt } from "@/lib/receipt"
 
 type PaymentResultProps = {
   sessionId: string
@@ -26,18 +36,43 @@ export function PaymentResult({ sessionId, equipmentId }: PaymentResultProps) {
   const role = normalizeRole(
     (session?.user as { role?: string | null } | undefined)?.role
   )
-  const bookingsHref = role === "admin" ? "/dashboard/all-rentals" : "/dashboard/rentals"
-  const bookingsLabel = role === "admin" ? "View all rentals" : "View my bookings"
+  const bookingsHref =
+    role === "admin" ? "/dashboard/all-rentals" : "/dashboard/rentals"
+  const bookingsLabel =
+    role === "admin" ? "View all rentals" : "View my bookings"
 
-  const {
-    data,
-    loading,
-    error,
-    reload,
-  } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => (sessionId ? verifyPayment(sessionId) : Promise.resolve(null)),
     [sessionId]
   )
+  const [downloading, setDownloading] = useState(false)
+
+  async function download() {
+    if (!data?.paid) return
+    setDownloading(true)
+    try {
+      await downloadReceipt({
+        number: data.bookingCode || data.reference || sessionId,
+        issuedOn: data.paidAt || "",
+        customer: data.customerName || session?.user?.name || "Customer",
+        email: data.customerEmail || session?.user?.email || "",
+        equipment: data.equipmentName || equipmentId || "Equipment",
+        period:
+          data.startDate && data.endDate
+            ? formatDateRange(data.startDate, data.endDate)
+            : "—",
+        quantity: data.quantity ?? 1,
+        amount: data.amount ?? 0,
+        reference: data.reference,
+        method: data.method || "Stripe",
+      })
+      toast.success("Receipt downloaded")
+    } catch {
+      toast.error("Couldn't download the receipt")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const detailsHref = equipmentId
     ? `/equipment/${encodeURIComponent(equipmentId)}`
@@ -58,7 +93,9 @@ export function PaymentResult({ sessionId, equipmentId }: PaymentResultProps) {
   if (loading) {
     return (
       <ResultCard
-        icon={<Loader2 className="size-8 animate-spin text-[#FF6B2C]" aria-hidden />}
+        icon={
+          <Loader2 className="size-8 animate-spin text-[#FF6B2C]" aria-hidden />
+        }
         title="Checking your payment..."
         message="This usually takes just a moment."
       />
@@ -104,6 +141,21 @@ export function PaymentResult({ sessionId, equipmentId }: PaymentResultProps) {
       message="Thanks! Your payment was received and your rental request is now with the owner."
       href={bookingsHref}
       linkLabel={bookingsLabel}
+      action={
+        <Button
+          type="button"
+          className="mt-5 h-11 rounded-full bg-[#FF6B2C] font-semibold text-white hover:bg-[#F05A1A]"
+          disabled={downloading}
+          onClick={download}
+        >
+          {downloading ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Download className="size-4" aria-hidden />
+          )}
+          {downloading ? "Preparing receipt..." : "Download receipt"}
+        </Button>
+      }
       extra={
         <div className="mt-6 rounded-2xl bg-[#FAF7F2] p-5 text-left">
           <p className="text-xs font-semibold tracking-wide text-stone-500 uppercase">
@@ -112,6 +164,11 @@ export function PaymentResult({ sessionId, equipmentId }: PaymentResultProps) {
           <p className="mt-1 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#111827]">
             {bdt(data.amount || 0)}
           </p>
+          {data.quantity ? (
+            <p className="mt-2 text-sm font-semibold text-[#111827]">
+              {data.quantity} {data.quantity === 1 ? "unit" : "units"} booked
+            </p>
+          ) : null}
           {data.startDate && data.endDate ? (
             <p className="mt-2 text-sm text-stone-600">
               {formatDateRange(data.startDate, data.endDate)}
@@ -123,7 +180,7 @@ export function PaymentResult({ sessionId, equipmentId }: PaymentResultProps) {
             </p>
           ) : null}
           {data.reference ? (
-            <p className="mt-2 break-all text-xs text-stone-500">
+            <p className="mt-2 text-xs break-all text-stone-500">
               Reference: {data.reference}
             </p>
           ) : null}
