@@ -242,6 +242,7 @@ export type NewEquipment = {
   name: string
   category: string
   price: number
+  availableQuantity: number
   location: string
   description: string
   image: string

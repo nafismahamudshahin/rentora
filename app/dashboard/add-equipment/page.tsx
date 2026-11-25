@@ -12,6 +12,7 @@ import { motion, useReducedMotion } from "framer-motion"
 import {
   AlertCircle,
   ArrowRight,
+  Boxes,
   Camera,
   CheckCircle2,
   ImagePlus,
@@ -33,6 +34,7 @@ import { Label } from "@/components/ui/label"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { btnPrimary, nativeFieldClass } from "@/components/dashboard/styles"
 import { createEquipment } from "@/backend-api/action/equipment"
+import { unitsOf } from "@/lib/booking"
 import { bdt } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -49,6 +51,7 @@ type Fields = {
   name: string
   category: string
   price: string
+  availableQuantity: string
   location: string
   image: string
   description: string
@@ -58,6 +61,7 @@ const EMPTY: Fields = {
   name: "",
   category: "",
   price: "",
+  availableQuantity: "1",
   location: "",
   image: "",
   description: "",
@@ -107,6 +111,7 @@ export default function AddEquipmentPage() {
     const location = fields.location.trim()
     const description = fields.description.trim()
     const price = Number(fields.price)
+    const availableQuantity = Number(fields.availableQuantity)
 
     if (!name || !fields.category || !location) {
       setError("Name, category and location are required.")
@@ -114,6 +119,14 @@ export default function AddEquipmentPage() {
     }
     if (!Number.isFinite(price) || price <= 0) {
       setError("Enter a price per day greater than 0.")
+      return
+    }
+    if (
+      !Number.isInteger(availableQuantity) ||
+      availableQuantity < 1 ||
+      availableQuantity > 1000
+    ) {
+      setError("Available quantity must be a whole number from 1 to 1000.")
       return
     }
     if (photoError) {
@@ -127,6 +140,7 @@ export default function AddEquipmentPage() {
         name,
         category: fields.category,
         price,
+        availableQuantity,
         location,
         description,
         image: photoUrl,
@@ -215,7 +229,7 @@ export default function AddEquipmentPage() {
               title="Price & location"
               hint="The price you set is charged for each rental day."
             />
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Price per day (৳)" htmlFor="price">
                 <Input
                   id="price"
@@ -225,6 +239,23 @@ export default function AddEquipmentPage() {
                   value={fields.price}
                   onChange={(event) => update("price", event.target.value)}
                   placeholder="4500"
+                  disabled={saving}
+                  className="h-12 rounded-xl border-[#EDE6D8] bg-[#FAF7F2] px-4 text-sm"
+                />
+              </Field>
+              <Field label="Available Quantity" htmlFor="available-quantity">
+                <Input
+                  id="available-quantity"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  step="1"
+                  inputMode="numeric"
+                  value={fields.availableQuantity}
+                  onChange={(event) =>
+                    update("availableQuantity", event.target.value)
+                  }
+                  placeholder="1"
                   disabled={saving}
                   className="h-12 rounded-xl border-[#EDE6D8] bg-[#FAF7F2] px-4 text-sm"
                 />
@@ -409,6 +440,10 @@ export default function AddEquipmentPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="rounded-full bg-[#FFF4ED] px-2.5 py-1 text-[10px] font-bold text-[#9A3412] uppercase">
                   {fields.category || "Category"}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-stone-500">
+                  <Boxes className="size-3 text-[#FF6B2C]" aria-hidden />
+                  {unitsOf(Number(fields.availableQuantity))} available
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-stone-500">
                   <MapPin className="size-3 text-[#FF6B2C]" aria-hidden />
