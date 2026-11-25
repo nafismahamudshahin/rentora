@@ -37,10 +37,28 @@ const columns: Column<Equipment>[] = [
     value: (r) => r.pricePerDay,
     cell: (r) => `${bdt(r.pricePerDay)} / day`,
   },
+  { header: "Quantity", value: (r) => r.availableQuantity ?? 1 },
   {
     header: "Status",
     value: (r) => r.status,
     cell: (r) => <StatusBadge tone={TONE[r.status]}>{r.status}</StatusBadge>,
+  },
+  {
+    header: "Review",
+    value: (r) => r.reviewStatus,
+    cell: (r) => (
+      <StatusBadge
+        tone={
+          r.reviewStatus === "Approved"
+            ? "success"
+            : r.reviewStatus === "Rejected"
+              ? "danger"
+              : "warning"
+        }
+      >
+        {r.reviewStatus}
+      </StatusBadge>
+    ),
   },
 ]
 

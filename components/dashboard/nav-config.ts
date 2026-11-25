@@ -44,14 +44,14 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   owner: [
     overview,
-    { label: "My Listings", href: "/dashboard/listings", icon: Boxes },
     {
       label: "Add Equipment",
       href: "/dashboard/add-equipment",
       icon: PackagePlus,
     },
+    { label: "My Equipment", href: "/dashboard/listings", icon: Boxes },
     { label: "Booking Requests", href: "/dashboard/requests", icon: Inbox },
-    { label: "My Bookings", href: "/dashboard/rentals", icon: CalendarCheck },
+    { label: "My Equipment Rentals", href: "/dashboard/rentals", icon: CalendarCheck },
     { label: "Earnings", href: "/dashboard/earnings", icon: Wallet },
     profile,
   ],
