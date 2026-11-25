@@ -118,13 +118,23 @@ export type Payout = {
   ownerId: string
   reference: string
   date: string
+  /** Net amount the owner receives after Rentora's fee. */
   amount: number
   status: PayoutStatus
+  equipment?: string
+  commission?: number
 }
 
 export type EarningsData = {
+  /** Last six months, oldest first. */
   monthly: { m: string; amount: number }[]
+  /** One row per successful payment, newest first. */
   payouts: Payout[]
+  /** Net earnings across all successful payments. */
+  total: number
+  /** Rentora's fee across all successful payments. */
+  commission: number
+  thisMonth: number
 }
 
 export type Payment = {
@@ -137,6 +147,8 @@ export type Payment = {
   ownerId?: string
   ownerName?: string
   amount: number
+  /** Units booked. Older rows behave as one unit. */
+  quantity?: number
   /** Rentora's 2% authority fee. Older rows may not have it. */
   commission?: number
   /** Amount the owner receives after the fee. Older rows may not have it. */
