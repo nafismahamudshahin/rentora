@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { authClient } from "@/lib/auth-client"
+import { authClient, getJwtToken } from "@/lib/auth-client"
 import { GoogleAuthButton } from "@/components/auth/google-auth-button"
 
 export function LoginForm() {
@@ -45,6 +45,10 @@ export function LoginForm() {
         return
       }
 
+      // Better Auth only sends the JWT header on get-session, not on sign-in.
+      // Ask for the access token now so API calls can use it immediately.
+      await getJwtToken().catch(() => undefined)
+
       toast.success("Logged in successfully")
       const next = new URLSearchParams(window.location.search).get("next")
       const target =
@@ -59,7 +63,7 @@ export function LoginForm() {
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#FAF7F2] px-4 py-12">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-2xl">
         <Link
           href="/"
           className="mb-8 flex items-center justify-center gap-2 text-xl font-bold text-[#111827]"
@@ -158,7 +162,7 @@ export function LoginForm() {
               href="/sign-up"
               className="font-bold text-[#8A3300] underline-offset-4 hover:underline"
             >
-              Sign up
+              Register
             </Link>
           </p>
         </div>
