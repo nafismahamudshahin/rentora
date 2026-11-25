@@ -43,6 +43,7 @@ import {
   validateBookingQuantity,
   validateBookingRange,
 } from "@/lib/booking"
+import { clearPendingBooking, usePendingBooking } from "@/lib/pending-booking"
 import { cn } from "@/lib/utils"
 
 type PaymentPageProps = {
@@ -65,6 +66,7 @@ export function PaymentPage({
   const { data: session, isPending: sessionPending } = authClient.useSession()
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
+  const [notes, setNotes] = useState("")
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState("")
 
@@ -74,13 +76,12 @@ export function PaymentPage({
     error,
   } = useAsync(
     () =>
-      equipmentId
-        ? getEquipmentById(equipmentId)
-        : Promise.resolve(undefined),
+      equipmentId ? getEquipmentById(equipmentId) : Promise.resolve(undefined),
     [equipmentId]
   )
   const { data: blocked = [] } = useAsync(
-    () => (equipmentId ? getUnavailableDates(equipmentId) : Promise.resolve([])),
+    () =>
+      equipmentId ? getUnavailableDates(equipmentId) : Promise.resolve([]),
     [equipmentId]
   )
   const { data: availability } = useAsync(
@@ -100,8 +101,25 @@ export function PaymentPage({
     }
   }, [cancelled, holdId])
 
+  // The booking modal saves delivery details in this tab before any login
+  // redirect. Show them as the form's starting values, never from the URL.
+  const pending = usePendingBooking({
+    equipmentId,
+    startDate,
+    endDate,
+    quantity,
+  })
+  const phoneValue = phone || pending?.phone || ""
+  const addressValue = address || pending?.address || ""
+  const notesValue = notes || pending?.notes || ""
+
   const days = startDate && endDate ? bookingDays(startDate, endDate) : 0
-  const rangeError = validateBookingRange(startDate, endDate, blocked, todayIso())
+  const rangeError = validateBookingRange(
+    startDate,
+    endDate,
+    blocked,
+    todayIso()
+  )
   const stock = unitsOf(item?.availableQuantity)
   const available = Math.min(stock, availability?.available ?? stock)
   const selectedQuantity = Math.min(quantity, Math.max(1, available))
@@ -110,7 +128,9 @@ export function PaymentPage({
   const total =
     item && validRange ? item.pricePerDay * days * selectedQuantity : 0
   const customerOnly =
-    !sessionPending && Boolean(session?.user) && session?.user.role !== "customer"
+    !sessionPending &&
+    Boolean(session?.user) &&
+    session?.user.role !== "customer"
 
   const backHref = equipmentId
     ? `/equipment/${encodeURIComponent(equipmentId)}`
@@ -128,7 +148,7 @@ export function PaymentPage({
 
     if (!item || !validRange || customerOnly) return
     if (!session?.user || session.user.role !== "customer") return
-    if (!phone.trim() || !address.trim()) {
+    if (!phoneValue.trim() || !addressValue.trim()) {
       setPayError("Enter your phone number and delivery address.")
       return
     }
@@ -140,9 +160,11 @@ export function PaymentPage({
         startDate,
         endDate,
         quantity: selectedQuantity,
-        phone: phone.trim(),
-        address: address.trim(),
+        phone: phoneValue.trim(),
+        address: addressValue.trim(),
+        notes: notesValue.trim(),
       })
+      clearPendingBooking()
       window.location.href = checkout.url
     } catch (caught) {
       const message =
@@ -193,7 +215,11 @@ export function PaymentPage({
         <p className="mt-2 text-stone-600">
           Go back to the equipment page and choose a listing again.
         </p>
-        <Button render={<Link href="/equipment" />} nativeButton={false} className="mt-6 rounded-full">
+        <Button
+          render={<Link href="/equipment" />}
+          nativeButton={false}
+          className="mt-6 rounded-full"
+        >
           Browse equipment
         </Button>
       </Card>
@@ -230,7 +256,11 @@ export function PaymentPage({
           <div className="relative aspect-[16/8] bg-stone-100">
             {item.image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={item.image} alt={item.name} className="size-full object-cover" />
+              <img
+                src={item.image}
+                alt={item.name}
+                className="size-full object-cover"
+              />
             ) : (
               <div className="grid size-full place-items-center bg-[radial-gradient(rgba(17,24,39,.06)_1px,transparent_1px)] [background-size:20px_20px]">
                 <ShieldCheck className="size-8 text-stone-400" aria-hidden />
@@ -250,8 +280,13 @@ export function PaymentPage({
                 {item.location}
               </span>
               <span className="flex items-center gap-1.5">
-                <Star className="size-4 fill-[#B45309] text-[#B45309]" aria-hidden />
-                {item.rating > 0 ? `${item.rating.toFixed(1)} rating` : "New listing"}
+                <Star
+                  className="size-4 fill-[#B45309] text-[#B45309]"
+                  aria-hidden
+                />
+                {item.rating > 0
+                  ? `${item.rating.toFixed(1)} rating`
+                  : "New listing"}
               </span>
               <span>Listed by {item.ownerName || "a Rentora owner"}</span>
               <span className="flex items-center gap-1.5">
@@ -273,7 +308,8 @@ export function PaymentPage({
 
             {cancelled ? (
               <div className="mt-5 rounded-2xl bg-[#FFF7ED] p-4 text-sm text-[#9A3412]">
-                Payment cancelled. Your dates are free again — review and try again.
+                Payment cancelled. Your dates are free again — review and try
+                again.
               </div>
             ) : null}
 
@@ -305,7 +341,7 @@ export function PaymentPage({
                   required
                   autoComplete="tel"
                   placeholder="01XXXXXXXXX"
-                  value={phone}
+                  value={phoneValue}
                   onChange={(event) => setPhone(event.target.value)}
                   className="h-12 rounded-xl border-[#EDE6D8]"
                 />
@@ -317,9 +353,25 @@ export function PaymentPage({
                   required
                   autoComplete="street-address"
                   placeholder="House, road, area, city"
-                  value={address}
+                  maxLength={300}
+                  value={addressValue}
                   onChange={(event) => setAddress(event.target.value)}
                   className="h-12 rounded-xl border-[#EDE6D8]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="delivery-notes">
+                  Additional notes{" "}
+                  <span className="font-normal text-stone-500">(optional)</span>
+                </Label>
+                <textarea
+                  id="delivery-notes"
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Anything the owner should know"
+                  value={notesValue}
+                  onChange={(event) => setNotes(event.target.value)}
+                  className="w-full resize-none rounded-xl border border-[#EDE6D8] bg-white p-3 text-sm outline-none focus-visible:border-[#FF6B2C] focus-visible:ring-2 focus-visible:ring-[#FF6B2C]/20"
                 />
               </div>
               <Button
@@ -335,9 +387,7 @@ export function PaymentPage({
                 ) : (
                   <CreditCard className="size-4" aria-hidden />
                 )}
-                {paying
-                  ? "Opening checkout..."
-                  : `Pay ${bdt(total)} and book`}
+                {paying ? "Opening checkout..." : `Pay ${bdt(total)} and book`}
               </Button>
               <p className="text-center text-xs text-stone-500">
                 Secure payment by Stripe. Your dates are held during checkout.
@@ -387,8 +437,9 @@ export function PaymentPage({
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between text-stone-600">
                 <span>
-                  {bdt(item.pricePerDay)} × {days} {days === 1 ? "day" : "days"} ×{" "}
-                  {selectedQuantity} {selectedQuantity === 1 ? "unit" : "units"}
+                  {bdt(item.pricePerDay)} × {days} {days === 1 ? "day" : "days"}{" "}
+                  × {selectedQuantity}{" "}
+                  {selectedQuantity === 1 ? "unit" : "units"}
                 </span>
                 <span>{bdt(total)}</span>
               </div>
@@ -401,7 +452,9 @@ export function PaymentPage({
             <Separator className="my-5 bg-[#EDE6D8]" />
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-[#111827]">Total due today</span>
+              <span className="text-sm font-bold text-[#111827]">
+                Total due today
+              </span>
               <span className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#111827]">
                 {bdt(total)}
               </span>

@@ -229,6 +229,7 @@ export type BookingCheckoutInput = {
   quantity: number
   phone: string
   address: string
+  notes: string
 }
 
 /** Result shown on the payment success page. */
