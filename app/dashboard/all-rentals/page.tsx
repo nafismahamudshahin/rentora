@@ -11,6 +11,10 @@ import type { Column } from "@/components/dashboard/data-table"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import type { Tone } from "@/components/dashboard/status-badge"
+import {
+  BOOKING_TONE,
+  bookingLabel,
+} from "@/components/dashboard/booking-status"
 import { btnDanger, btnPrimary } from "@/components/dashboard/styles"
 import { formatDateRange } from "@/lib/format"
 import { getRentals } from "@/backend-api/api/rentals"
@@ -26,16 +30,10 @@ type Rental = {
   owner: Person
   equipment: string
   duration: string
+  quantity: number
   amount: number
   payment: PaymentStatus
   status: BookingStatus
-}
-
-const BOOKING_TONE: Record<BookingStatus, Tone> = {
-  Pending: "warning",
-  Active: "info",
-  Completed: "success",
-  Cancelled: "danger",
 }
 
 const PAYMENT_TONE: Record<PaymentStatus, Tone> = {
@@ -87,7 +85,9 @@ const columns: Column<Rental>[] = [
     header: "Booking Status",
     value: (r) => r.status,
     cell: (r) => (
-      <StatusBadge tone={BOOKING_TONE[r.status]}>{r.status}</StatusBadge>
+      <StatusBadge tone={BOOKING_TONE[r.status]}>
+        {bookingLabel(r.status, r.payment)}
+      </StatusBadge>
     ),
   },
 ]
