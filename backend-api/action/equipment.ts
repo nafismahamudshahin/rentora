@@ -8,6 +8,11 @@ export async function approveEquipment(id: string): Promise<void> {
   await apiFetch(`/equipment/${segment(id)}/approve`, { method: "PATCH" })
 }
 
+/** Admin rejects a listing, hiding it from public pages. */
+export async function rejectEquipment(id: string): Promise<void> {
+  await apiFetch(`/equipment/${segment(id)}/reject`, { method: "PATCH" })
+}
+
 /** Admin removes a listing. */
 export async function removeEquipment(id: string): Promise<void> {
   await apiFetch(`/equipment/${segment(id)}`, { method: "DELETE" })
