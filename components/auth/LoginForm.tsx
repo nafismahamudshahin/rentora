@@ -46,7 +46,6 @@ export function LoginForm() {
       }
 
       toast.success("Logged in successfully")
-      // Booking links send guests here with ?next=/payment?...
       const next = new URLSearchParams(window.location.search).get("next")
       const target =
         next && next.startsWith("/") && !next.startsWith("//") ? next : "/"
