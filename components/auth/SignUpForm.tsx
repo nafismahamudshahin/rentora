@@ -4,14 +4,16 @@ import { useState } from "react"
 import type { FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Store, UserRound } from "lucide-react"
 import { toast } from "sonner"
 
+import { setMyRole, type SignUpRole } from "@/backend-api/action/account"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { authClient } from "@/lib/auth-client"
+import { authClient, signOut } from "@/lib/auth-client"
 import { GoogleAuthButton } from "@/components/auth/google-auth-button"
+import { cn } from "@/lib/utils"
 
 function isValidUrl(value: string) {
   try {
@@ -22,10 +24,26 @@ function isValidUrl(value: string) {
   }
 }
 
+const roles = [
+  {
+    value: "customer" as const,
+    label: "Customer",
+    hint: "I want to rent gear",
+    icon: UserRound,
+  },
+  {
+    value: "owner" as const,
+    label: "Owner",
+    hint: "I want to list gear",
+    icon: Store,
+  },
+]
+
 export function RegisterForm() {
   const router = useRouter()
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [role, setRole] = useState<SignUpRole>("customer")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,13 +89,26 @@ export function RegisterForm() {
         return
       }
 
-      toast.success("Account created successfully")
+      if (role === "owner") {
+        const changed = await setMyRole("owner")
+        if (!changed.ok) {
+          toast.error(
+            "Account created as a customer. Email us to switch to owner."
+          )
+        }
+      }
+
+      // Registration creates a session too. End it so the new user signs in
+      // with their final role and lands on the login page as requested.
+      await signOut()
+
+      toast.success("Account created successfully. Please log in.")
       const next = new URLSearchParams(window.location.search).get("next")
-      const target =
+      const loginUrl =
         next && next.startsWith("/") && !next.startsWith("//")
-          ? next
-          : "/dashboard"
-      router.push(target)
+          ? `/login?next=${encodeURIComponent(next)}`
+          : "/login"
+      router.push(loginUrl)
       router.refresh()
     } catch {
       setError("Something went wrong. Try again.")
@@ -87,7 +118,7 @@ export function RegisterForm() {
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#FAF7F2] px-4 py-12">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-2xl">
         <Link
           href="/"
           className="mb-8 flex items-center justify-center gap-2 text-xl font-bold text-[#111827]"
@@ -107,6 +138,55 @@ export function RegisterForm() {
           </p>
 
           <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
+            <fieldset disabled={busy}>
+              <legend className="mb-2 text-sm font-medium text-[#111827]">
+                I want to
+              </legend>
+              <div className="grid grid-cols-2 gap-3">
+                {roles.map((option) => {
+                  const Icon = option.icon
+                  const active = role === option.value
+                  return (
+                    <label
+                      key={option.value}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-[#FF6B2C]/40",
+                        active
+                          ? "border-[#FF6B2C] bg-orange-50"
+                          : "border-[#e8e2d8] bg-white hover:border-[#FF6B2C]/60"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="role"
+                        value={option.value}
+                        checked={active}
+                        onChange={() => setRole(option.value)}
+                        className="sr-only"
+                      />
+                      <span
+                        className={cn(
+                          "grid size-9 shrink-0 place-items-center rounded-lg",
+                          active
+                            ? "bg-[#FF6B2C] text-[#111827]"
+                            : "bg-[#FAF7F2] text-stone-500"
+                        )}
+                      >
+                        <Icon className="size-4" aria-hidden />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold text-[#111827]">
+                          {option.label}
+                        </span>
+                        <span className="block truncate text-xs text-stone-500">
+                          {option.hint}
+                        </span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -134,7 +214,8 @@ export function RegisterForm() {
 
             <div className="space-y-2">
               <Label htmlFor="photo">
-                Photo <span className="font-normal text-stone-500">(optional)</span>
+                Photo{" "}
+                <span className="font-normal text-stone-500">(optional)</span>
               </Label>
               <Input
                 id="photo"
@@ -210,6 +291,9 @@ export function RegisterForm() {
           </div>
 
           <GoogleAuthButton />
+          <p className="mt-3 text-center text-xs text-stone-500">
+            Google sign-ups start as customers.
+          </p>
 
           <p className="mt-6 text-center text-sm text-stone-600">
             Already a member?{" "}
