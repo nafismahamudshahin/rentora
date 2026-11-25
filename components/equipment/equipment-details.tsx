@@ -5,10 +5,8 @@
 // Express API; the favorite button uses the same shared hook as the catalog.
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import {
-  AlertCircle,
   ArrowLeft,
   Boxes,
   CalendarDays,
@@ -23,32 +21,20 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import {
-  getAvailability,
-  getEquipment,
-  getEquipmentById,
-  getUnavailableDates,
-} from "@/backend-api/api/equipment"
+import { getEquipment, getEquipmentById } from "@/backend-api/api/equipment"
 import type { Equipment } from "@/backend-api/types"
+import { BookingModal } from "@/components/equipment/booking-modal"
 import { EquipmentCard } from "@/components/equipment/equipment-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
 import { useFavorites } from "@/hooks/use-favorites"
 import { authClient } from "@/lib/auth-client"
-import { bdt, formatDateShort } from "@/lib/format"
-import {
-  bookingDays,
-  todayIso,
-  unitsOf,
-  validateBookingQuantity,
-  validateBookingRange,
-} from "@/lib/booking"
+import { bdt } from "@/lib/format"
+import { unitsOf } from "@/lib/booking"
 import { cn } from "@/lib/utils"
 
 type EquipmentDetailsProps = {
@@ -124,10 +110,8 @@ function Fact({
 }
 
 export function EquipmentDetails({ id }: EquipmentDetailsProps) {
-  const router = useRouter()
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [quantity, setQuantity] = useState(1)
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const closeBooking = useCallback(() => setBookingOpen(false), [])
   const { data: session, isPending: sessionPending } = authClient.useSession()
   const favorites = useFavorites()
   const {
@@ -136,16 +120,9 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
     error,
     reload,
   } = useAsync(() => getEquipmentById(id), [id])
-  const { data: blocked = [] } = useAsync(() => getUnavailableDates(id), [id])
-  const { data: availability } = useAsync(
-    () =>
-      startDate && endDate
-        ? getAvailability(id, startDate, endDate)
-        : Promise.resolve(undefined),
-    [id, startDate, endDate]
-  )
   const { data: related = [] } = useAsync(
-    () => (item ? getEquipment({ category: item.category }) : Promise.resolve([])),
+    () =>
+      item ? getEquipment({ category: item.category }) : Promise.resolve([]),
     [item?.category]
   )
 
@@ -158,7 +135,9 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
           <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#111827]">
             Couldn&apos;t load this listing
           </h1>
-          <p className="mt-2 text-stone-600">Check your connection and try again.</p>
+          <p className="mt-2 text-stone-600">
+            Check your connection and try again.
+          </p>
           <Button
             type="button"
             variant="outline"
@@ -188,49 +167,26 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
     }
   }
 
-  const minDate = todayIso()
-  const days = startDate && endDate ? bookingDays(startDate, endDate) : 0
-  const rangeError = validateBookingRange(startDate, endDate, blocked, minDate)
   const stock = unitsOf(item.availableQuantity)
-  const available = Math.min(stock, availability?.available ?? stock)
-  const selectedQuantity = Math.min(quantity, Math.max(1, available))
-  const quantityError = validateBookingQuantity(quantity, available)
   // Bookings are customer-only. Owners and admins manage listings instead.
   const signedIn = Boolean(session?.user)
   const customerOnly =
     !sessionPending && signedIn && session?.user.role !== "customer"
-  // A previous rental does not lock the whole listing — only the dates it
-  // actually occupies. Hidden listings stay closed.
-  const canBook =
-    !customerOnly &&
-    item.status !== "Hidden" &&
-    days > 0 &&
-    !rangeError &&
-    !quantityError
+  const canOpenBooking =
+    !customerOnly && item.status !== "Hidden" && !sessionPending
 
-  // Send the chosen dates to the payment page. Guests go through login first.
-  const book = () => {
-    if (sessionPending || !canBook) return
-
-    const search = new URLSearchParams({
-      equipmentId: item.id,
-      startDate,
-      endDate,
-      quantity: String(selectedQuantity),
-    })
-    const paymentPath = `/payment?${search.toString()}`
-
-    if (!session?.user) {
-      router.push(`/login?next=${encodeURIComponent(paymentPath)}`)
-      return
-    }
-    router.push(paymentPath)
+  function openBooking() {
+    if (!canOpenBooking) return
+    setBookingOpen(true)
   }
 
   return (
     <main className="bg-[#FAF7F2]">
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-stone-500">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex flex-wrap items-center gap-1.5 text-sm text-stone-500"
+        >
           <Link href="/" className="hover:text-[#111827]">
             Home
           </Link>
@@ -283,7 +239,9 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                       : `Add ${item.name} to favorites`
                   }
                   aria-pressed={isFavorite}
-                  disabled={favorites.pendingId === item.id || favorites.loading}
+                  disabled={
+                    favorites.pendingId === item.id || favorites.loading
+                  }
                   onClick={() => favorites.toggleFavorite(item)}
                   className="absolute top-4 right-4 size-10 rounded-full border border-white/70 bg-white/90 text-[#111827] shadow-sm backdrop-blur hover:bg-white"
                 >
@@ -311,11 +269,19 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                         {item.location}
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <Star className="size-4 fill-[#B45309] text-[#B45309]" aria-hidden />
-                        {item.rating > 0 ? `${item.rating.toFixed(1)} rating` : "New listing"}
+                        <Star
+                          className="size-4 fill-[#B45309] text-[#B45309]"
+                          aria-hidden
+                        />
+                        {item.rating > 0
+                          ? `${item.rating.toFixed(1)} rating`
+                          : "New listing"}
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <UserRound className="size-4 text-stone-400" aria-hidden />
+                        <UserRound
+                          className="size-4 text-stone-400"
+                          aria-hidden
+                        />
                         Listed by {item.ownerName || "a Rentora owner"}
                       </span>
                     </div>
@@ -342,13 +308,21 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                 Quick facts
               </h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Fact icon={CalendarDays} label="Rental type" value={item.rentalType || "Daily"} />
+                <Fact
+                  icon={CalendarDays}
+                  label="Rental type"
+                  value={item.rentalType || "Daily"}
+                />
                 <Fact
                   icon={Boxes}
                   label="Available quantity"
                   value={`${stock} unit${stock === 1 ? "" : "s"}`}
                 />
-                <Fact icon={ShieldCheck} label="Listing review" value={item.reviewStatus} />
+                <Fact
+                  icon={ShieldCheck}
+                  label="Review status"
+                  value={item.reviewStatus}
+                />
                 <Fact icon={MapPin} label="Pickup area" value={item.location} />
               </div>
             </section>
@@ -358,140 +332,49 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <Card className="overflow-hidden rounded-[26px] border-[#EDE6D8] bg-white shadow-[0_18px_36px_-18px_rgba(17,24,39,.18)]">
               <CardContent className="p-6 sm:p-7">
-                <p className="text-sm font-semibold text-stone-500">Rental price</p>
+                <p className="text-sm font-semibold text-stone-500">
+                  Rental price
+                </p>
                 <div className="mt-1 flex items-end gap-1.5">
                   <span className="font-[family-name:var(--font-space-grotesk)] text-4xl font-bold text-[#111827]">
                     {bdt(item.pricePerDay)}
                   </span>
-                  <span className="pb-1 text-sm font-medium text-stone-500">/ day</span>
+                  <span className="pb-1 text-sm font-medium text-stone-500">
+                    / day
+                  </span>
                 </div>
 
                 <Separator className="my-6 bg-[#EDE6D8]" />
 
                 <p className="text-sm font-semibold text-[#111827]">
-                  Choose rental dates
+                  Ready to book?
                 </p>
-                <p className="mt-1 text-xs text-stone-500">
-                  Pick any free dates — past bookings only use the units they booked.
+                <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                  Choose your dates, quantity and delivery details in the next
+                  step. We check live availability before payment.
                 </p>
                 {customerOnly ? (
                   <p className="mt-2 text-xs font-semibold text-[#9A3412]">
-                    Only customer accounts can book. Owners and admins manage listings.
-                  </p>
-                ) : null}
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="start-date">Start date</Label>
-                    <Input
-                      id="start-date"
-                      type="date"
-                      min={minDate}
-                      value={startDate}
-                      onChange={(event) => {
-                        const next = event.target.value
-                        setStartDate(next)
-                        if (endDate && next > endDate) setEndDate("")
-                      }}
-                      className="h-11 rounded-xl border-[#EDE6D8]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="end-date">End date</Label>
-                    <Input
-                      id="end-date"
-                      type="date"
-                      min={startDate || minDate}
-                      value={endDate}
-                      onChange={(event) => setEndDate(event.target.value)}
-                      className="h-11 rounded-xl border-[#EDE6D8]"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3 max-w-[11rem] space-y-1.5">
-                  <Label htmlFor="booking-quantity">Quantity</Label>
-                  <Input
-                    id="booking-quantity"
-                    type="number"
-                    min="1"
-                    max={Math.max(1, available)}
-                    step="1"
-                    inputMode="numeric"
-                    value={selectedQuantity}
-                    onChange={(event) => setQuantity(Number(event.target.value))}
-                    disabled={available < 1}
-                    className="h-11 rounded-xl border-[#EDE6D8]"
-                  />
-                  <p className="text-xs text-stone-500">
-                    {startDate && endDate
-                      ? `${available} unit${available === 1 ? "" : "s"} free for these dates`
-                      : `${stock} unit${stock === 1 ? "" : "s"} in stock`}
-                  </p>
-                </div>
-
-                {blocked.length > 0 ? (
-                  <div className="mt-3 rounded-2xl bg-[#FFF7ED] p-3 text-xs text-[#9A3412]">
-                    <p className="font-bold">Fully booked — pick other dates</p>
-                    <ul className="mt-1 space-y-0.5">
-                      {blocked.slice(0, 4).map((range) => (
-                        <li key={`${range.startDate}-${range.endDate}`}>
-                          {formatDateShort(range.startDate)} –{" "}
-                          {formatDateShort(range.endDate)}
-                        </li>
-                      ))}
-                      {blocked.length > 4 ? (
-                        <li>+{blocked.length - 4} more</li>
-                      ) : null}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {rangeError ? (
-                  <p className="mt-3 flex items-start gap-1.5 text-xs font-semibold text-red-600">
-                    <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden />
-                    {rangeError}
-                  </p>
-                ) : null}
-
-                {quantityError ? (
-                  <p className="mt-3 flex items-start gap-1.5 text-xs font-semibold text-red-600">
-                    <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden />
-                    {quantityError}
+                    Only customer accounts can book. Owners and admins manage
+                    listings.
                   </p>
                 ) : null}
 
                 <div className="mt-5 rounded-2xl border border-[#EDE6D8] bg-[#FAF7F2] p-4">
-                  {days > 0 ? (
-                    <div className="flex items-center justify-between text-sm text-stone-600">
-                      <span>
-                        {bdt(item.pricePerDay)} × {days}{" "}
-                        {days === 1 ? "day" : "days"} × {selectedQuantity}{" "}
-                        {selectedQuantity === 1 ? "unit" : "units"}
-                      </span>
-                      <span className="font-semibold text-[#111827]">
-                        {bdt(item.pricePerDay * days * selectedQuantity)}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-stone-500">
-                      Select dates to see the total
-                    </p>
-                  )}
-                  <Separator className="my-3 bg-[#EDE6D8]" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-[#111827]">Total</span>
-                    <span className="font-[family-name:var(--font-space-grotesk)] text-xl font-bold text-[#111827]">
-                      {days > 0
-                        ? bdt(item.pricePerDay * days * selectedQuantity)
-                        : "—"}
+                  <div className="flex items-center justify-between text-sm text-stone-600">
+                    <span>
+                      {stock} unit{stock === 1 ? "" : "s"} ready to rent
+                    </span>
+                    <span className="font-semibold text-[#111827]">
+                      No hidden fees
                     </span>
                   </div>
                 </div>
 
                 <Button
                   type="button"
-                  disabled={sessionPending || !canBook}
-                  onClick={book}
+                  disabled={!canOpenBooking}
+                  onClick={openBooking}
                   className="mt-5 h-12 w-full rounded-full bg-[#FF6B2C] font-bold text-[#111827] hover:bg-[#FF6B2C]/90 disabled:opacity-60"
                 >
                   <CalendarDays className="size-4" aria-hidden />
@@ -501,18 +384,18 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                       ? "Customers only"
                       : sessionPending
                         ? "Checking session..."
-                        : session?.user
-                          ? "Book now"
-                          : "Sign in to book"}
+                        : "Book now"}
                 </Button>
                 <p className="mt-2 text-center text-xs text-stone-500">
-                  Next: delivery details and secure Stripe checkout
+                  Dates, quantity, delivery details and secure Stripe checkout
                 </p>
 
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={favorites.pendingId === item.id || favorites.loading}
+                  disabled={
+                    favorites.pendingId === item.id || favorites.loading
+                  }
                   onClick={() => favorites.toggleFavorite(item)}
                   className={cn(
                     "mt-3 h-12 w-full rounded-full font-bold",
@@ -588,7 +471,9 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                 >
                   More in {item.category}
                 </h2>
-                <p className="mt-1 text-stone-600">Similar gear you might also like.</p>
+                <p className="mt-1 text-stone-600">
+                  Similar gear you might also like.
+                </p>
               </div>
               <Link
                 href="/equipment"
@@ -605,7 +490,8 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
                     item={relatedItem}
                     isFavorite={favorites.favoriteIds.has(relatedItem.id)}
                     pending={
-                      favorites.pendingId === relatedItem.id || favorites.loading
+                      favorites.pendingId === relatedItem.id ||
+                      favorites.loading
                     }
                     onToggleFavorite={favorites.toggleFavorite}
                   />
@@ -615,6 +501,15 @@ export function EquipmentDetails({ id }: EquipmentDetailsProps) {
           </section>
         ) : null}
       </div>
+
+      <BookingModal
+        item={item}
+        open={bookingOpen}
+        onClose={closeBooking}
+        signedIn={signedIn}
+        customerOnly={customerOnly}
+        sessionPending={sessionPending}
+      />
     </main>
   )
 }
