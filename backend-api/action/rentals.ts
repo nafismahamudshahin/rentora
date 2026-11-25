@@ -7,10 +7,10 @@ export async function cancelRental(id: string): Promise<void> {
   await apiFetch(`/rentals/${segment(id)}/cancel`, { method: "PATCH" })
 }
 
-/** Admin approves or cancels any rental. */
+/** Admin changes a rental to Active, Completed or Cancelled. */
 export async function updateRentalStatus(
   id: string,
-  status: "Active" | "Cancelled"
+  status: "Active" | "Completed" | "Cancelled"
 ): Promise<void> {
   await apiFetch(`/rentals/${segment(id)}/status`, {
     method: "PATCH",

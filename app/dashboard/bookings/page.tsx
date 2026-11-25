@@ -7,10 +7,14 @@ import type { Column } from "@/components/dashboard/data-table"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import type { Tone } from "@/components/dashboard/status-badge"
+import {
+  BOOKING_TONE,
+  bookingLabel,
+} from "@/components/dashboard/booking-status"
 import { Button } from "@/components/ui/button"
 import { formatDateShort } from "@/lib/format"
 import { getBookings } from "@/backend-api/api/bookings"
-import type { BookingStatus } from "@/backend-api/types"
+import type { BookingStatus, PaymentStatus } from "@/backend-api/types"
 import { useAsync } from "@/hooks/use-async"
 
 type Booking = {
@@ -19,15 +23,17 @@ type Booking = {
   customer: string
   equipment: string
   dates: string
+  quantity: number
   total: number
+  payment: PaymentStatus
   status: BookingStatus
 }
 
-const TONE: Record<BookingStatus, Tone> = {
+const PAYMENT_TONE: Record<PaymentStatus, Tone> = {
+  Paid: "success",
   Pending: "warning",
-  Active: "info",
-  Completed: "success",
-  Cancelled: "danger",
+  Refunded: "neutral",
+  Failed: "danger",
 }
 
 const columns: Column<Booking>[] = [
@@ -35,11 +41,23 @@ const columns: Column<Booking>[] = [
   { header: "Customer", value: (r) => r.customer },
   { header: "Equipment", value: (r) => r.equipment },
   { header: "Dates", value: (r) => r.dates },
+  { header: "Quantity", value: (r) => r.quantity },
   { header: "Total", value: (r) => r.total, cell: (r) => bdt(r.total) },
   {
+    header: "Payment",
+    value: (r) => r.payment,
+    cell: (r) => (
+      <StatusBadge tone={PAYMENT_TONE[r.payment]}>{r.payment}</StatusBadge>
+    ),
+  },
+  {
     header: "Status",
-    value: (r) => r.status,
-    cell: (r) => <StatusBadge tone={TONE[r.status]}>{r.status}</StatusBadge>,
+    value: (r) => bookingLabel(r.status, r.payment),
+    cell: (r) => (
+      <StatusBadge tone={BOOKING_TONE[r.status]}>
+        {bookingLabel(r.status, r.payment)}
+      </StatusBadge>
+    ),
   },
 ]
 
@@ -58,7 +76,9 @@ export default function BookingsPage() {
           customer: b.customerName,
           equipment: b.equipment,
           dates: `${formatDateShort(b.startDate)} – ${formatDateShort(b.endDate)}`,
+          quantity: b.quantity ?? 1,
           total: b.amount,
+          payment: b.paymentStatus,
           status: b.bookingStatus,
         }))
       ),
