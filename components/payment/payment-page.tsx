@@ -11,6 +11,7 @@ import type { FormEvent } from "react"
 import {
   AlertCircle,
   ArrowLeft,
+  Boxes,
   CalendarDays,
   CreditCard,
   Loader2,
@@ -204,7 +205,7 @@ export function PaymentPage({
       <Card className="mx-auto max-w-xl rounded-[26px] border-[#EDE6D8] bg-white p-10 text-center">
         <CalendarDays className="mx-auto size-8 text-[#FF6B2C]" aria-hidden />
         <h1 className="mt-4 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#111827]">
-          {rangeError || "Choose your rental dates first"}
+          {rangeError || quantityError || "Choose your rental dates first"}
         </h1>
         <p className="mt-2 text-stone-600">
           Pick dates that are free, then continue to payment.
