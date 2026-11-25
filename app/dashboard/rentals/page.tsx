@@ -55,6 +55,7 @@ const columns: Column<Rental>[] = [
   { header: "Rental Start Date", value: (r) => r.startDate },
   { header: "Rental End Date", value: (r) => r.endDate },
   { header: "Booking Date", value: (r) => r.bookingDate },
+  { header: "Quantity", value: (r) => r.quantity },
   { header: "Total Amount", value: (r) => r.total, cell: (r) => bdt(r.total) },
   {
     header: "Payment Status",
