@@ -30,7 +30,7 @@ const navLinks = [
 
 // Change these if your routes differ.
 const DASHBOARD_HREF = "/dashboard"
-const PROFILE_HREF = "/profile"
+const PROFILE_HREF = "/dashboard/profile"
 
 const btnBase =
   "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors"
