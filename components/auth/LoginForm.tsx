@@ -4,7 +4,6 @@ import { useState } from "react"
 import type { FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { motion, useReducedMotion } from "framer-motion"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -14,12 +13,8 @@ import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth-client"
 import { GoogleAuthButton } from "@/components/auth/google-auth-button"
 
-const EASE = [0.22, 1, 0.36, 1] as const
-
 export function LoginForm() {
   const router = useRouter()
-  const reduce = useReducedMotion() ?? false
-
   const [showPassword, setShowPassword] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
