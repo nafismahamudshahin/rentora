@@ -57,7 +57,7 @@ export function CustomerReviews() {
         >
           {reviews.map((r) => (
             <motion.li
-              key={r.name}
+              key={r.id ?? r.name}
               variants={card}
               className="flex flex-col gap-3 rounded-[26px] border border-[#EDE6D8] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,.05),0_18px_36px_-18px_rgba(17,24,39,.22)] transition-transform duration-200 hover:-translate-y-1"
             >
