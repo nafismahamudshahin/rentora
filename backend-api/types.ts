@@ -27,6 +27,8 @@ export type Equipment = {
   rentalType?: string
   /** Owner-facing availability. */
   status: ListingStatus
+  /** Total units the owner offers for this listing. */
+  availableQuantity: number
   /** Admin review state. */
   reviewStatus: ReviewStatus
   rating: number

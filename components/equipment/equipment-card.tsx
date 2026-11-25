@@ -4,7 +4,7 @@
 // One equipment listing card. Shared by the home section and catalog page.
 
 import Link from "next/link"
-import { Heart, MapPin, Star } from "lucide-react"
+import { Boxes, Heart, MapPin, Star } from "lucide-react"
 
 import type { Equipment } from "@/backend-api/types"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { unitsOf } from "@/lib/booking"
 import { bdt } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -80,14 +81,6 @@ export function EquipmentCard({
           >
             {item.category}
           </Badge>
-          {item.status !== "Available" ? (
-            <Badge
-              variant="outline"
-              className="rounded-full border-stone-200 bg-stone-100 text-stone-600"
-            >
-              {item.status}
-            </Badge>
-          ) : null}
         </div>
         <CardTitle className="mt-1 line-clamp-1 font-[family-name:var(--font-space-grotesk)] text-xl text-[#111827]">
           {item.name}
@@ -99,7 +92,10 @@ export function EquipmentCard({
       </CardHeader>
 
       <CardContent className="flex items-center justify-between gap-3 px-5 pt-3 pb-0 text-xs text-stone-500">
-        <span className="truncate">by {item.ownerName || "Rentora owner"}</span>
+        <span className="flex items-center gap-1.5 truncate">
+          <Boxes className="size-3.5 shrink-0" aria-hidden />
+          {unitsOf(item.availableQuantity)} available · by {item.ownerName || "Rentora owner"}
+        </span>
         <span className="flex shrink-0 items-center gap-1 font-semibold text-[#B45309]">
           <Star className="size-3.5 fill-current" aria-hidden />
           {item.rating > 0 ? item.rating.toFixed(1) : "New"}
