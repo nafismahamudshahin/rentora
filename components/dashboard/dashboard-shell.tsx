@@ -197,7 +197,7 @@ function UserMenu({ user, role }: { user: SessionUser; role: Role }) {
       await signOut({
         fetchOptions: {
           onSuccess: () => {
-            router.push("/")
+            router.push("/login")
             router.refresh()
           },
         },

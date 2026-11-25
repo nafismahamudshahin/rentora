@@ -24,7 +24,7 @@ import { Logo } from "./logo"
 const navLinks = [
   { label: "Home", href: "/" },
   { label: "All Equipment", href: "/equipment" },
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "How it works", href: "/how-it-works" },
   { label: "Contact", href: "/contact" },
 ]
 
@@ -109,7 +109,7 @@ function UserMenu({ user }: { user: SessionUser }) {
         fetchOptions: {
           onSuccess: () => {
             setOpen(false)
-            router.push("/")
+            router.push("/login")
             router.refresh()
           },
         },
