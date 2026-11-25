@@ -11,13 +11,20 @@ import type { Column } from "@/components/dashboard/data-table"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import { btnDanger, btnPrimary } from "@/components/dashboard/styles"
-import { getEquipment } from "@/backend-api/api/equipment"
+import { getAdminEquipment } from "@/backend-api/api/equipment"
 import {
   approveEquipment,
+  rejectEquipment,
   removeEquipment,
 } from "@/backend-api/action/equipment"
 import type { Equipment } from "@/backend-api/types"
 import { useAsync } from "@/hooks/use-async"
+
+const REVIEW_TONE = {
+  Approved: "success",
+  "Pending review": "warning",
+  Rejected: "danger",
+} as const
 
 const columns: Column<Equipment>[] = [
   { header: "Equipment", value: (r) => r.name, className: "font-bold" },
@@ -28,11 +35,12 @@ const columns: Column<Equipment>[] = [
     value: (r) => r.pricePerDay,
     cell: (r) => `${bdt(r.pricePerDay)} / day`,
   },
+  { header: "Quantity", value: (r) => r.availableQuantity ?? 1 },
   {
     header: "Status",
     value: (r) => r.reviewStatus,
     cell: (r) => (
-      <StatusBadge tone={r.reviewStatus === "Approved" ? "success" : "warning"}>
+      <StatusBadge tone={REVIEW_TONE[r.reviewStatus] ?? "warning"}>
         {r.reviewStatus}
       </StatusBadge>
     ),
@@ -46,8 +54,23 @@ export default function AdminEquipmentPage() {
     error,
     setData,
     reload,
-  } = useAsync(() => getEquipment(), [])
+  } = useAsync(() => getAdminEquipment(), [])
   const [pendingId, setPendingId] = useState<string | null>(null)
+
+  async function reject(id: string) {
+    setPendingId(id)
+    try {
+      await rejectEquipment(id)
+      setData((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, reviewStatus: "Rejected" } : r))
+      )
+      toast.success("Equipment rejected — it is hidden from public pages")
+    } catch {
+      toast.error("Couldn't reject the equipment")
+    } finally {
+      setPendingId(null)
+    }
+  }
 
   async function approve(id: string) {
     setPendingId(id)
@@ -105,7 +128,7 @@ export default function AdminEquipmentPage() {
         }
         actions={(r) => (
           <>
-            {r.reviewStatus === "Pending review" && (
+            {r.reviewStatus !== "Approved" && (
               <Button
                 type="button"
                 size="sm"
@@ -114,6 +137,17 @@ export default function AdminEquipmentPage() {
                 className={btnPrimary}
               >
                 Approve
+              </Button>
+            )}
+            {r.reviewStatus !== "Rejected" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => reject(r.id)}
+                disabled={pendingId !== null}
+              >
+                Reject
               </Button>
             )}
             <Button
