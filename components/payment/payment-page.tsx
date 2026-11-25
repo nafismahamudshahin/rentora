@@ -82,8 +82,15 @@ export function PaymentPage({
 
   const days = startDate && endDate ? bookingDays(startDate, endDate) : 0
   const rangeError = validateBookingRange(startDate, endDate, blocked, todayIso())
-  const validRange = days > 0 && !rangeError
-  const total = item && validRange ? item.pricePerDay * days : 0
+  const stock = unitsOf(item?.availableQuantity)
+  const available = Math.min(stock, availability?.available ?? stock)
+  const selectedQuantity = Math.min(quantity, Math.max(1, available))
+  const quantityError = validateBookingQuantity(quantity, available)
+  const validRange = days > 0 && !rangeError && !quantityError
+  const total =
+    item && validRange ? item.pricePerDay * days * selectedQuantity : 0
+  const customerOnly =
+    !sessionPending && Boolean(session?.user) && session?.user.role !== "customer"
 
   const backHref = equipmentId
     ? `/equipment/${encodeURIComponent(equipmentId)}`
@@ -92,13 +99,15 @@ export function PaymentPage({
     equipmentId,
     startDate,
     endDate,
+    quantity: String(selectedQuantity),
   }).toString()}`
 
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setPayError("")
 
-    if (!item || !validRange) return
+    if (!item || !validRange || customerOnly) return
+    if (!session?.user || session.user.role !== "customer") return
     if (!phone.trim() || !address.trim()) {
       setPayError("Enter your phone number and delivery address.")
       return
@@ -121,6 +130,28 @@ export function PaymentPage({
       toast.error(message)
       setPaying(false)
     }
+  }
+
+  if (customerOnly) {
+    return (
+      <Card className="mx-auto max-w-xl rounded-[26px] border-[#EDE6D8] bg-white p-10 text-center">
+        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#111827]">
+          Customers only
+        </h1>
+        <p className="mt-2 text-stone-600">
+          Owner and admin accounts can&apos;t create bookings. Use a customer
+          account to book this equipment.
+        </p>
+        <Button
+          render={<Link href={backHref} />}
+          nativeButton={false}
+          className="mt-6 rounded-full"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to listing
+        </Button>
+      </Card>
+    )
   }
 
   if (loading) {
