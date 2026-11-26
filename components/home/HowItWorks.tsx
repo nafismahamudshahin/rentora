@@ -34,7 +34,10 @@ export function HowItWorks() {
   const reduce = useReducedMotion() ?? false
 
   return (
-    <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+    <section
+      id="how-it-works"
+      className="container mx-auto px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+    >
       <span
         className="mb-3.5 block h-[5px] w-11 rounded-full bg-[#FF6B2C]"
         aria-hidden
