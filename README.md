@@ -8,6 +8,8 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat-square)
 ![Stripe](https://img.shields.io/badge/Payments-Stripe-635bff?style=flat-square)
 
+**Live site:** [https://rentoranext.vercel.app/](https://rentoranext.vercel.app/)
+
 Rentora is a website for renting equipment. A customer can find gear, pick
 dates, and pay with Stripe. An owner can add gear and earn money. An admin
 checks new gear before other people can see it.
