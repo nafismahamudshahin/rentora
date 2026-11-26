@@ -80,6 +80,7 @@ show the message inline.
 | Function                         | File               | Endpoint                          | Effect                                |
 | -------------------------------- | ------------------ | --------------------------------- | ------------------------------------- |
 | `createEquipment(input)`         | `action/equipment` | `POST /equipment`                 | owner/admin adds listing              |
+| `updateListing(id, input)`       | `action/listings`  | `PATCH /equipment/:id`            | owner edits; returns updated row      |
 | `approveEquipment(id)`           | `action/equipment` | `PATCH /equipment/:id/approve`    | admin approves                        |
 | `setListingHidden(id, hidden)`   | `action/listings`  | `PATCH /equipment/:id/visibility` | owner hides/shows                     |
 | `removeEquipment(id)`            | `action/equipment` | `DELETE /equipment/:id`           | admin removes                         |
@@ -109,6 +110,9 @@ show the message inline.
 - `createCheckout()` sends the customer's phone, address and optional notes
   from the booking modal. The API stores them on the rental before Stripe and
   repeats them through payment metadata for the verified booking.
+- `updateListing()` sends the same editable fields as `createEquipment()` and
+  resolves with the updated `Equipment`. The API resets `reviewStatus` to
+  `Pending review`, so owner edits go through admin approval again.
 - `createEquipment()` sends `availableQuantity` with the listing. `Rental` rows
   also carry `quantity`; checkout price is `pricePerDay × days × quantity`.
   `getAvailability()` is the source of truth for how many units a customer may

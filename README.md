@@ -24,7 +24,7 @@ Better Auth, and Stripe.
 | User     | What they can do                                                 |
 | -------- | ---------------------------------------------------------------- |
 | Customer | Book gear, pay, write a review, download a receipt               |
-| Owner    | Add gear, see bookings, see earnings                             |
+| Owner    | Add and edit gear, see bookings, see earnings                    |
 | Admin    | Check new gear, see all bookings and payments, change user roles |
 
 ---
@@ -45,7 +45,8 @@ Better Auth, and Stripe.
 
 3. **Admin checks new gear**  
    A new listing stays hidden until an admin approves it. If the admin says no,
-   the listing is rejected. Public pages show only approved gear.
+   the listing is rejected. Public pages show only approved gear. Owners can
+   edit a listing from **My Listings**; changes go back for review.
 
 4. **Clear status everywhere**  
    A paid booking is **Active**. A stopped hold is **Cancelled**. An old rental

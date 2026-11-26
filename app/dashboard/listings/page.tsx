@@ -4,9 +4,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { Pencil } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { EditListingDialog } from "@/components/dashboard/edit-listing-dialog"
 import { DataTable, bdt } from "@/components/dashboard/data-table"
 import type { Column } from "@/components/dashboard/data-table"
 import { PageHeader } from "@/components/dashboard/page-header"
@@ -77,6 +79,7 @@ export default function ListingsPage() {
     [ownerId]
   )
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Equipment | null>(null)
 
   async function toggleHidden(item: Equipment) {
     const hidden = item.status !== "Hidden"
@@ -151,6 +154,17 @@ export default function ListingsPage() {
               size="sm"
               variant="outline"
               disabled={r.status === "Rented" || pendingId !== null}
+              onClick={() => setEditing(r)}
+              className={btnOutline}
+            >
+              <Pencil className="size-3.5" aria-hidden />
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={r.status === "Rented" || pendingId !== null}
               onClick={() => toggleHidden(r)}
               className={btnOutline}
             >
@@ -168,6 +182,19 @@ export default function ListingsPage() {
             </Button>
           </>
         )}
+      />
+
+      <EditListingDialog
+        key={editing?.id ?? "edit-none"}
+        listing={editing}
+        onClose={() => setEditing(null)}
+        onUpdated={(updated) =>
+          setData((prev) =>
+            prev.map((row) =>
+              row.id === updated.id ? { ...row, ...updated } : row
+            )
+          )
+        }
       />
     </>
   )

@@ -264,6 +264,9 @@ export type NewEquipment = {
   image: string
 }
 
+/** Editable fields for an owner updating one of their listings. */
+export type EquipmentUpdate = NewEquipment
+
 export type ProfileUpdate = {
   name: string
   /** `null` clears the photo; `undefined` leaves it unchanged. */
