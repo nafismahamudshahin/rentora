@@ -2,8 +2,9 @@
 
 // components/dashboard/data-table.tsx
 // One reusable card + table with search, CSV export, row animations and an
-// empty state. Below `lg` each row becomes a stacked card so no sideways
-// scrolling is needed; from `lg` up it renders the dense table.
+// empty state. The switch between cards and the dense table uses the width of
+// this component, not the viewport, so it stays correct beside the dashboard
+// sidebar. Long cells wrap instead of forcing the table wider.
 
 import { useMemo, useState } from "react"
 import type { ReactNode } from "react"
@@ -111,10 +112,10 @@ export function DataTable<T extends { id: string }>({
       initial={reduce ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
-      className={cn(card, "overflow-hidden p-0 sm:p-0")}
+      className={cn(card, "@container min-w-0 overflow-hidden p-0 sm:p-0")}
     >
       {/* Toolbar */}
-      <div className="flex flex-col gap-4 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+      <div className="flex flex-col gap-4 border-b border-stone-100 p-4 sm:px-5 sm:py-4 @sm:flex-row @sm:items-center @sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#FF6B2C]/15 text-[#8A3300]">
             <Table2 className="size-4" aria-hidden />
@@ -130,7 +131,7 @@ export function DataTable<T extends { id: string }>({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1 sm:flex-none">
+          <div className="relative min-w-0 flex-1 @sm:flex-none">
             <Search
               aria-hidden
               className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-stone-500"
@@ -141,7 +142,7 @@ export function DataTable<T extends { id: string }>({
               onChange={(e) => setQuery(e.target.value)}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
-              className="h-9 w-full rounded-lg border-stone-300 bg-white pl-8 text-sm sm:w-52"
+              className="h-9 w-full rounded-lg border-stone-300 bg-white pl-8 text-sm @sm:w-52"
             />
           </div>
           <Button
@@ -158,7 +159,7 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* Desktop / tablet: dense table */}
-      <div className="hidden px-3 pt-1 pb-3 sm:px-4 sm:pb-4 lg:block">
+      <div className="hidden px-3 pt-1 pb-3 sm:px-4 sm:pb-4 @4xl:block">
         <Table className="min-w-[680px]">
           <TableHeader>
             <TableRow className="border-0 bg-[#FAF6F0] hover:bg-[#FAF6F0]">
@@ -193,7 +194,7 @@ export function DataTable<T extends { id: string }>({
                     <TableCell
                       key={c.header}
                       className={cn(
-                        "px-3 py-3 text-sm text-[#111827]",
+                        "px-3 py-3 text-sm whitespace-normal text-[#111827]",
                         i === 0 && "font-bold",
                         c.className
                       )}
@@ -216,7 +217,7 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* Small screens: one readable card per row */}
-      <div className="divide-y divide-stone-100 lg:hidden">
+      <div className="divide-y divide-stone-100 @4xl:hidden">
         <AnimatePresence initial={false}>
           {visible.map((r, idx) => (
             <motion.article
@@ -241,7 +242,7 @@ export function DataTable<T extends { id: string }>({
               )}
 
               {details.length > 0 && (
-                <dl className="grid gap-x-5 gap-y-3 sm:grid-cols-2">
+                <dl className="grid gap-x-5 gap-y-3 @sm:grid-cols-2 @3xl:grid-cols-3">
                   {details.map((c) => (
                     <div key={c.header} className="min-w-0">
                       <dt className="text-[10px] font-bold tracking-widest text-stone-400 uppercase">
@@ -261,7 +262,7 @@ export function DataTable<T extends { id: string }>({
               )}
 
               {actions && (
-                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
+                <div className="mt-4 flex w-full flex-col gap-2 border-t border-stone-100 pt-3 @sm:flex-row @sm:flex-wrap @sm:items-center [&>*]:w-full @sm:[&>*]:w-auto">
                   {actions(r)}
                 </div>
               )}

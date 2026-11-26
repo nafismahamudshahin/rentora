@@ -372,14 +372,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     if (user && !isAllowed(role, pathname)) router.replace("/dashboard")
   }, [user, role, pathname, router])
 
+  // A wide table can leave the page scrolled sideways. Keep the sidebar and
+  // the first column aligned whenever the dashboard route changes.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+
   if (isPending || !user) return <FullScreenLoader />
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="overflow-x-hidden">
       <style>{SIDEBAR_CSS}</style>
       <AppSidebar user={user} role={role} />
 
-      <SidebarInset className="bg-[#F3EEE6] text-[#111827]">
+      <SidebarInset className="w-auto min-w-0 flex-1 bg-[#F3EEE6] text-[#111827]">
         {/* Topbar */}
         <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 rounded-t-xl bg-[#F3EEE6]/80 px-4 backdrop-blur-md sm:px-6">
           <SidebarTrigger className="-ml-1 size-9 rounded-xl text-[#111827] hover:bg-black/5" />
@@ -424,7 +430,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             initial={reduce ? false : { opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: EASE }}
-            className="container mx-auto px-4 sm:px-6 lg:px-8"
+            className="container mx-auto min-w-0 px-4 sm:px-6 lg:px-8"
           >
             {children}
           </motion.div>
