@@ -131,20 +131,16 @@ export function Footer() {
             <div>
               <h3 className="mb-4 text-sm font-semibold text-white">Contact</h3>
               <ul className="space-y-2.5 text-sm text-white/70">
-                <li>[YOUR ADDRESS]</li>
-                <li>
-                  <a href="tel:+000000000" className="hover:text-brand">
-                    [YOUR PHONE]
-                  </a>
-                </li>
+                <li>Online support</li>
                 <li>
                   <a
                     href="mailto:hello@rentora.com"
                     className="hover:text-brand"
                   >
-                    [YOUR EMAIL]
+                    hello@rentora.com
                   </a>
                 </li>
+                <li>Usually replies in one business day</li>
               </ul>
             </div>
           </div>
