@@ -1,6 +1,10 @@
 import type { NextConfig } from "next"
 
-const apiServer = process.env.API_SERVER_URL || "http://localhost:5000"
+// A trailing slash would produce /api/... with a double slash, which Next
+// normalizes into a 308 redirect loop. Strip it from any configured URL.
+const apiServer = (
+  process.env.API_SERVER_URL || "http://localhost:5000"
+).replace(/\/+$/, "")
 
 const nextConfig: NextConfig = {
   async rewrites() {
